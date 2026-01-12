@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import Navbar from '@/components/Navbar'; // <--- Import the Navbar
+import Navbar from '@/components/Navbar';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'TimeCapsule - Decentralized Evidence Preservation',
-  description: 'Preserve digital evidence with tamper-proof timestamps using Bitcoin & IPFS',
-  keywords: 'evidence preservation, timestamping, IPFS, OpenTimestamps, Bitcoin, journalism, OSINT',
+  title: 'TimeCapsule — Decentralized Evidence Preservation',
+  description:
+    'Preserve digital evidence with tamper-proof timestamps using Bitcoin & IPFS',
+  keywords:
+    'evidence preservation, timestamping, IPFS, OpenTimestamps, Bitcoin, journalism, OSINT',
 };
 
 export default function RootLayout({
@@ -17,19 +19,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en"> 
-      {/* Added 'dark' class to force dark mode if you configured it in globals.css */}
-      
-      <body className={inter.className}>
-        
-        {/* 1. The Navbar goes here (Top of page) */}
+    <html lang="en" className="dark">
+      <body
+        className={`
+          ${inter.className}
+          min-h-screen
+          bg-gradient-to-br
+          from-background
+          via-muted
+          to-background
+          text-foreground
+          antialiased
+        `}
+      >
+        {/* Navbar stays global */}
         <Navbar />
-        
-        {/* 2. The Main Content goes here */}
-        <main className="min-h-screen bg-background text-foreground">
+
+        {/* Main app content */}
+        <main className="min-h-screen">
           {children}
         </main>
-
       </body>
     </html>
   );
