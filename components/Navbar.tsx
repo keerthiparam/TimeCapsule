@@ -22,7 +22,7 @@ export default function Navbar() {
     };
     getUser();
 
-    // 2. FIX: Listen for login/logout events in Real-Time
+    // 2. Listen for login/logout events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (_event === 'SIGNED_OUT') {
@@ -36,8 +36,19 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    // The listener above will handle the state update
     router.push('/login');
+  };
+
+  // Helper to get display name (Email OR Wallet)
+  const getDisplayName = () => {
+    if (!user) return '';
+    // If they have a wallet address in metadata, show that
+    if (user.user_metadata?.wallet_address) {
+      const addr = user.user_metadata.wallet_address;
+      return `ETH: ${addr.slice(0,6)}...${addr.slice(-4)}`;
+    }
+    // Otherwise show email
+    return user.email;
   };
 
   return (
@@ -45,7 +56,7 @@ export default function Navbar() {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         
         <Link href="/" className="text-xl font-bold tracking-tighter text-primary flex items-center gap-2">
-          TimeCapsule
+          ⏳ TimeCapsule
         </Link>
 
         <div className="flex items-center gap-6">
@@ -59,12 +70,17 @@ export default function Navbar() {
           )}
 
           {user ? (
-            <button
-              onClick={handleLogout}
-              className="text-sm font-medium text-destructive hover:text-red-400 transition-colors"
-            >
-              Log out
-            </button>
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-mono text-muted-foreground hidden sm:inline border border-border px-2 py-1 rounded bg-secondary/50">
+                {getDisplayName()}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="text-sm font-medium text-destructive hover:text-red-400 transition-colors"
+              >
+                Log out
+              </button>
+            </div>
           ) : (
             <Link
               href="/login"

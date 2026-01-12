@@ -22,7 +22,11 @@ async function getUserFromRequest(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request);
+    
+    // --- FIX 1: Extract Identity ---
     const userId = user?.id || null;
+    // Get wallet address if they logged in via MetaMask
+    const walletAddress = user?.user_metadata?.wallet_address || null;
 
     const body = await request.json();
     const { type = 'URL' } = body;
@@ -36,7 +40,7 @@ export async function POST(request: NextRequest) {
       const { url } = body;
       if (!url) return NextResponse.json({ error: 'URL required' }, { status: 400 });
 
-      console.log('📸 Puppeteer Capturing (Standalone Mode):', url);
+      console.log('📸 Puppeteer Capturing:', url);
       
       const browser = await puppeteer.launch({ 
         headless: true, 
@@ -58,9 +62,8 @@ export async function POST(request: NextRequest) {
         console.warn("Page loading warned:", e);
       }
 
-      // --- THE SANITIZER: Make the page static and self-contained ---
+      // --- THE SANITIZER ---
       await page.evaluate(async () => {
-        // 1. INLINE IMAGES (Convert to Base64 so they don't get blocked)
         const toBase64 = async (url: string) => {
             try {
                 const response = await fetch(url);
@@ -75,13 +78,11 @@ export async function POST(request: NextRequest) {
 
         const images = document.querySelectorAll('img');
         for (const img of images) {
-            // Twitter specific: grab the high-res version if available
             const src = img.src || img.dataset.src;
             if (src && !src.startsWith('data:')) {
                 const base64 = await toBase64(src);
                 if (base64) {
                     img.src = base64 as string;
-                    // Remove attributes that trigger external loads
                     img.removeAttribute('srcset'); 
                     img.removeAttribute('data-src');
                     img.removeAttribute('loading'); 
@@ -89,28 +90,19 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // 2. NUKE SCRIPTS & EXTERNAL CONNECTIONS (Fixes CSP Errors)
         const selectorsToRemove = [
-            'script',                // The brain
-            'iframe',                // External windows
-            'noscript',              // Fallbacks
-            'object', 'embed',       // Flash/Plugins
-            'link[rel="manifest"]',  // App Manifests (Twitter PWA)
-            'link[rel="preload"]',   // Script pre-loaders
-            'link[rel="modulepreload"]',
-            'meta[http-equiv="Content-Security-Policy"]' // Remove original CSP
+            'script', 'iframe', 'noscript', 'object', 'embed',
+            'link[rel="manifest"]', 'link[rel="preload"]', 'link[rel="modulepreload"]',
+            'meta[http-equiv="Content-Security-Policy"]'
         ];
         
         document.querySelectorAll(selectorsToRemove.join(',')).forEach(el => el.remove());
 
-        // 3. CLEANUP FORMS & EVENTS
         document.querySelectorAll('*').forEach(el => {
-            // Remove event handlers like onclick="hack()"
             const attrs = el.getAttributeNames().filter(name => name.startsWith('on'));
             attrs.forEach(name => el.removeAttribute(name));
         });
         
-        // Remove popups
         document.querySelectorAll('[role="dialog"], .cookie-banner, #credential_picker_container').forEach(el => el.remove());
       });
 
@@ -124,10 +116,8 @@ export async function POST(request: NextRequest) {
     // === 2. HANDLE FILE UPLOAD ===
     } else if (type === 'FILE') {
       const { fileData, fileName } = body; 
-      // fileData comes as "data:image/png;base64,....."
       if (!fileData) return NextResponse.json({ error: 'File required' }, { status: 400 });
 
-      // Strip the prefix (data:application/pdf;base64,) to get raw bytes
       const base64Content = fileData.split(',')[1]; 
       contentToHash = Buffer.from(base64Content, 'base64');
       
@@ -136,29 +126,27 @@ export async function POST(request: NextRequest) {
     }
 
     // === COMMON LOGIC ===
-    
-    // 1. Hash content
     const hash = crypto.createHash('sha256').update(contentToHash).digest();
     const contentHashHex = hash.toString('hex');
 
-    // 2. IPFS Upload
     const ipfsResult = await uploadToIPFS(contentToHash, ipfsFileName);
-
-    // 3. OTS Timestamp
     const otsResult = await createTimestamp(hash);
 
-    // 4. Save to DB
+    // --- FIX 2: Save walletAddress to DB ---
     const capture = await prisma.capture.create({
       data: {
         type: type, 
-        url: body.url || null, // Optional now
+        url: body.url || null, 
         title: pageTitle,
         contentHash: contentHashHex,
         ipfsCID: ipfsResult.cid,
         ipfsUrl: ipfsResult.url,
         otsProof: otsResult.proof,
         otsStatus: otsResult.status,
+        
         userId: userId, 
+        walletAddress: walletAddress, // <--- SAVING WALLET HERE
+
         metadata: {
             capturedAt: new Date().toISOString(),
             originalName: body.fileName || null
@@ -177,20 +165,27 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET function stays the same as before...
 export async function GET(request: NextRequest) {
-    // ... (Use the same GET code I gave you in the last step) ...
-    // Just copy-paste the getUserFromRequest logic if needed
-    try {
+  try {
     const user = await getUserFromRequest(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const userId = user.id;
+    const walletAddress = user.user_metadata?.wallet_address;
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
     
+    // --- FIX 3: Robust Query Logic ---
+    // If wallet exists, search for matches on ID OR Wallet.
+    // This allows persisting data across anonymous sessions if wallet matches.
+    const whereClause = walletAddress 
+      ? { OR: [{ userId: userId }, { walletAddress: walletAddress }] }
+      : { userId: userId };
+
     const captures = await prisma.capture.findMany({
       take: limit,
-      where: { userId: user.id },
+      where: whereClause,
       orderBy: { createdAt: 'desc' },
       select: {
         id: true, type: true, url: true, title: true,

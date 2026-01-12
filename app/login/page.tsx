@@ -5,6 +5,7 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import { Loader2 } from 'lucide-react';
 
 // Manually create client
 const supabase = createClient(
@@ -15,20 +16,58 @@ const supabase = createClient(
 export default function LoginPage() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
+  const [walletLoading, setWalletLoading] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
 
-    // --- FIX: Listen for Auth Changes ---
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
-        router.refresh(); // Update the Navbar
-        router.push('/captures'); // Go to dashboard
+        router.refresh();
+        router.push('/captures');
       }
     });
 
     return () => subscription.unsubscribe();
   }, [router]);
+
+  // --- METAMASK LOGIN LOGIC ---
+  const handleMetaMaskLogin = async () => {
+    setWalletLoading(true);
+    try {
+      // 1. Check if MetaMask is installed
+      // @ts-ignore
+      if (!window.ethereum) {
+        alert("MetaMask is not installed!");
+        setWalletLoading(false);
+        return;
+      }
+
+      // 2. Request Wallet Address
+      // @ts-ignore
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const walletAddress = accounts[0];
+
+      // 3. Sign in Anonymously to Supabase
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (error) throw error;
+
+      // 4. Save Wallet Address to User Profile
+      if (data.user) {
+        await supabase.auth.updateUser({
+          data: { 
+            wallet_address: walletAddress,
+            full_name: `Wallet: ${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}`
+          }
+        });
+      }
+      // Listener will handle redirect...
+    } catch (error: any) {
+      console.error(error);
+      alert("Login failed: " + error.message);
+      setWalletLoading(false);
+    }
+  };
 
   if (!isMounted) return null;
 
@@ -41,10 +80,32 @@ export default function LoginPage() {
             TimeCapsule
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Login or create an account.
+            Connect via Web3 or Email
           </p>
         </div>
 
+        {/* --- METAMASK BUTTON --- */}
+        <button
+          onClick={handleMetaMaskLogin}
+          disabled={walletLoading}
+          className="w-full mb-6 flex items-center justify-center gap-3 px-4 py-3 bg-[#F6851B] hover:bg-[#e57a18] text-white font-bold rounded-md transition-all shadow-sm"
+        >
+          {walletLoading ? (
+            <Loader2 className="animate-spin" size={20} />
+          ) : (
+            <svg style={{width: '24px', height: '24px'}} viewBox="0 0 24 24">
+              <path fill="currentColor" d="M21.83 14.82L17.29 2.68C17.06 2.06 16.47 1.66 15.81 1.66H8.18C7.53 1.66 6.94 2.06 6.71 2.68L2.17 14.82C1.96 15.39 2.21 16.03 2.74 16.29L12 20.89L21.26 16.29C21.79 16.03 22.04 15.39 21.83 14.82Z" />
+            </svg>
+          )}
+          Connect MetaMask
+        </button>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border"></span></div>
+          <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or using email</span></div>
+        </div>
+
+        {/* --- STANDARD EMAIL FORM --- */}
         <Auth
           supabaseClient={supabase}
           view="sign_in"

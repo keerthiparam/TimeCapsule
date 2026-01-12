@@ -41,7 +41,9 @@ model Capture {
   
   userId String?
 
+  walletAddress String?
   @@index([userId])
+  @@index([walletAddress])
   @@index([createdAt])
   @@index([contentHash])
 }
