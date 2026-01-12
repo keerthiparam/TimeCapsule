@@ -1,0 +1,58 @@
+// Prisma Schema for TimeCapsule
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Capture {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Content info
+  type        CaptureType
+  url         String?
+  title       String?
+  description String?
+  
+  // Cryptographic proof
+  contentHash String   @unique // SHA-256 hash
+  
+  // Storage
+  ipfsCID     String?  // IPFS Content ID
+  ipfsUrl     String?  // Gateway URL for quick access
+  
+  // OpenTimestamps
+  otsProof    Bytes?   // Serialized OTS proof
+  otsStatus   OTSStatus @default(PENDING)
+  
+  // Metadata
+  metadata    Json?    // Flexible storage for EXIF, headers, etc.
+  
+  // Optional screenshot
+  screenshotCID String?
+  screenshotUrl String?
+  
+  @@index([createdAt])
+  @@index([contentHash])
+}
+
+enum CaptureType {
+  URL
+  SCREENSHOT
+  FILE
+  TEXT
+}
+
+enum OTSStatus {
+  PENDING      // Just created, not yet submitted
+  INCOMPLETE   // Submitted to OTS, waiting for Bitcoin confirmation
+  COMPLETE     // Bitcoin attestation confirmed
+  FAILED       // Something went wrong
+}

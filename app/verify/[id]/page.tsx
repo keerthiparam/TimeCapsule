@@ -1,0 +1,266 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { Shield, Clock, ExternalLink, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+
+interface VerificationData {
+  verified: boolean;
+  capture: {
+    id: string;
+    url: string;
+    title: string;
+    contentHash: string;
+    ipfsCID: string;
+    ipfsUrl: string;
+    otsStatus: string;
+    createdAt: string;
+  };
+  verification: {
+    verified: boolean;
+    message: string;
+    ipfsIntact: boolean;
+    blockHeight?: number;
+    timestamp?: number;
+  };
+}
+
+export default function VerifyPage() {
+  const params = useParams();
+  const id = params.id as string;
+  
+  const [data, setData] = useState<VerificationData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [upgrading, setUpgrading] = useState(false);
+
+  const fetchVerification = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/verify?id=${id}`);
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Verification failed');
+      }
+      
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    setUpgrading(true);
+    try {
+      const response = await fetch('/api/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Refresh verification data
+        await fetchVerification();
+      }
+    } catch (err) {
+      console.error('Upgrade failed:', err);
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVerification();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="animate-spin mx-auto mb-4 text-blue-600" size={48} />
+          <p className="text-gray-600">Verifying proof...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
+          <AlertCircle className="text-red-600 mx-auto mb-4" size={48} />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">
+            Verification Failed
+          </h1>
+          <p className="text-gray-600 text-center">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const isComplete = data.capture.otsStatus === 'COMPLETE';
+  const isPending = data.capture.otsStatus === 'INCOMPLETE';
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Proof Verification
+          </h1>
+          <p className="text-gray-600">
+            Independent verification of digital evidence
+          </p>
+        </div>
+
+        {/* Status Card */}
+        <div className={`p-6 rounded-lg mb-6 ${
+          isComplete 
+            ? 'bg-green-50 border-2 border-green-200' 
+            : 'bg-yellow-50 border-2 border-yellow-200'
+        }`}>
+          <div className="flex items-center gap-3 mb-4">
+            {isComplete ? (
+              <CheckCircle className="text-green-600" size={32} />
+            ) : (
+              <Clock className="text-yellow-600" size={32} />
+            )}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                {isComplete ? 'Fully Verified' : 'Pending Confirmation'}
+              </h2>
+              <p className={isComplete ? 'text-green-700' : 'text-yellow-700'}>
+                {data.verification.message}
+              </p>
+            </div>
+          </div>
+
+          {isPending && (
+            <div className="mt-4">
+              <button
+                onClick={handleUpgrade}
+                disabled={upgrading}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+              >
+                {upgrading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Checking...
+                  </>
+                ) : (
+                  'Check for Confirmation'
+                )}
+              </button>
+              <p className="text-xs text-gray-600 mt-2">
+                Bitcoin blocks are mined approximately every 10 minutes. Check back soon!
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Capture Details */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Shield size={20} />
+            Capture Details
+          </h3>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700">Original URL</label>
+              <a 
+                href={data.capture.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-700 flex items-center gap-1 mt-1"
+              >
+                {data.capture.title || data.capture.url}
+                <ExternalLink size={14} />
+              </a>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700">Content Hash (SHA-256)</label>
+              <p className="font-mono text-xs text-gray-600 break-all mt-1 bg-gray-50 p-2 rounded">
+                {data.capture.contentHash}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700">IPFS Storage</label>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="font-mono text-xs text-gray-600">
+                  {data.capture.ipfsCID}
+                </span>
+                {data.verification.ipfsIntact && (
+                  <CheckCircle className="text-green-600" size={16} />
+                )}
+              </div>
+              <a 
+                href={`https://${data.capture.ipfsCID}.ipfs.w3s.link`}
+                target="_blank"
+                rel="noopener noreferrer" 
+                className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1 mt-1"
+              >
+                View on IPFS
+                <ExternalLink size={14} />
+              </a>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700">Captured At</label>
+              <p className="text-gray-600 mt-1">
+                {new Date(data.capture.createdAt).toLocaleString()}
+              </p>
+            </div>
+
+            {data.verification.blockHeight && (
+              <div>
+                <label className="text-sm font-medium text-gray-700">Bitcoin Block</label>
+                <p className="text-gray-600 mt-1">
+                  #{data.verification.blockHeight}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* How to Verify */}
+        <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+            How to Independently Verify
+          </h3>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
+            <li>Download the original content from IPFS using the CID above</li>
+            <li>Calculate SHA-256 hash and compare with recorded hash</li>
+            <li>Verify the OpenTimestamps proof against Bitcoin blockchain</li>
+            <li>Confirm the timestamp matches the capture date</li>
+          </ol>
+          <p className="text-xs text-gray-600 mt-4">
+            This proof is cryptographically verifiable and doesn't require trust in TimeCapsule.
+          </p>
+        </div>
+
+        {/* Share */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600 mb-2">Share this verification:</p>
+          <input
+            type="text"
+            readOnly
+            value={typeof window !== 'undefined' ? window.location.href : ''}
+            className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg text-sm text-center font-mono"
+            onClick={(e) => e.currentTarget.select()}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
