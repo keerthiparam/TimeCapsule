@@ -80,7 +80,7 @@ export default function LoginPage() {
             TimeCapsule
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Connect via Web3 or Email
+            Connect via Web3 
           </p>
         </div>
 
@@ -102,51 +102,51 @@ export default function LoginPage() {
 
         <div className="relative mb-6">
           <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border"></span></div>
-          <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or using email</span></div>
+          <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground text-center">Don't have MetaMask? Create one <a href='https://metamask.io/'><u>here</u></a></span></div>
         </div>
 
         {/* --- STANDARD EMAIL FORM --- */}
-        <Auth
-          supabaseClient={supabase}
-          view="sign_in"
-          appearance={{
-            theme: ThemeSupa,
-            variables: {
-              default: {
-                colors: {
-                  brand: 'hsl(var(--primary))',
-                  brandAccent: 'hsl(var(--primary))',
-                  brandButtonText: 'hsl(var(--primary-foreground))',
-                  defaultButtonBackground: 'hsl(var(--secondary))',
-                  defaultButtonBackgroundHover: 'hsl(var(--secondary) / 0.8)',
-                  defaultButtonBorder: 'hsl(var(--border))',
-                  defaultButtonText: 'hsl(var(--secondary-foreground))',
-                  dividerBackground: 'hsl(var(--border))',
-                  inputBackground: 'transparent',
-                  inputBorder: 'hsl(var(--input))',
-                  inputBorderHover: 'hsl(var(--ring))',
-                  inputPlaceholder: 'hsl(var(--muted-foreground))',
-                  inputText: 'hsl(var(--foreground))',
-                  inputLabelText: 'hsl(var(--foreground))',
-                  anchorTextColor: 'hsl(var(--primary))',
-                  anchorTextHoverColor: 'hsl(var(--primary) / 0.8)',
-                },
-                radii: {
-                  buttonBorderRadius: 'var(--radius)',
-                  inputBorderRadius: 'var(--radius)',
-                },
-              },
-            },
-            className: {
-              button: 'font-medium transition-colors',
-              input: 'bg-background',
-              anchor: 'hover:underline font-bold',
-            }
-          }}
-          providers={[]} 
-          theme="default"
-          showLinks={true}
-        />
+         {/* Auth */}
+          {/* // supabaseClient={supabase} */}
+          {/* // view="sign_in" */}
+          {/* // appearance={{ */}
+            {/* // theme: ThemeSupa,
+            // variables: {
+            //   default: { */}
+            {/* //     colors: { */}
+            {/* //       brand: 'hsl(var(--primary))',
+            //       brandAccent: 'hsl(var(--primary))', */}
+            {/* //       brandButtonText: 'hsl(var(--primary-foreground))', */}
+            {/* //       defaultButtonBackground: 'hsl(var(--secondary))', */}
+            {/* //       defaultButtonBackgroundHover: 'hsl(var(--secondary) / 0.8)', */}
+            {/* //       defaultButtonBorder: 'hsl(var(--border))', */}
+            {/* //       defaultButtonText: 'hsl(var(--secondary-foreground))', */}
+            {/* //       dividerBackground: 'hsl(var(--border))', */}
+            {/* //       inputBackground: 'transparent', */}
+            {/* //       inputBorder: 'hsl(var(--input))', */}
+            {/* //       inputBorderHover: 'hsl(var(--ring))', */}
+            {/* //       inputPlaceholder: 'hsl(var(--muted-foreground))', */}
+            {/* //       inputText: 'hsl(var(--foreground))', */}
+            {/* //       // inputLabelText: 'hsl(var(--foreground))', */}
+            {/* //       // anchorTextColor: 'hsl(var(--primary))',/ */}
+            {/* //       // anchorTextHoverColor: 'hsl(var(--primary) / 0.8)', */}
+            {/* //     }, */}
+            {/* //     radii: { */}
+            {/* //       buttonBorderRadius: 'var(--radius)', */}
+            {/* //       inputBorderRadius: 'var(--radius)', */}
+            {/* //     }, */}
+            {/* //   }, */}
+            {/* // }, */}
+            {/* // className: { */}
+            {/* //   button: 'font-medium transition-colors',
+            //   input: 'bg-background',
+            //   anchor: 'hover:underline font-bold', */}
+            {/* // } */}
+        {/* //   }} */}
+        {/* //   providers={[]}  */}
+        {/* //   theme="default" */}
+        {/* //   showLinks={true} */}
+        {/* // /> */}
       </div>
     </div>
   );
