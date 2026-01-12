@@ -256,7 +256,7 @@ export default function VerifyPage() {
                 )}
               </div>
               <a 
-                href={`https://${data.capture.ipfsCID}.ipfs.storacha.link`}
+                href={`https://${data.capture.ipfsCID}.ipfs.w3s.link`}
                 target="_blank"
                 rel="noopener noreferrer" 
                 className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1 mt-1"

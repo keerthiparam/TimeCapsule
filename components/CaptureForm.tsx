@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Link as LinkIcon, Check, AlertCircle } from 'lucide-react';
+import { Loader2, Link as LinkIcon, Upload, Check, AlertCircle, File as FileIcon } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -9,59 +9,74 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// 1. Define the props (This fixes the error!)
 interface CaptureFormProps {
   onSuccess?: () => void;
 }
 
-interface CaptureResult {
-  id: string;
-  contentHash: string;
-  ipfsCID: string;
-  otsStatus: string;
-}
-
-// 2. Accept the prop here
 export default function CaptureForm({ onSuccess }: CaptureFormProps) {
+  const [mode, setMode] = useState<'URL' | 'FILE'>('URL');
   const [url, setUrl] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<CaptureResult | null>(null);
   const [error, setError] = useState('');
+  const [successId, setSuccessId] = useState('');
 
+  // Convert File to Base64 string for API upload
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setResult(null);
+    setSuccessId('');
 
     try {
+      // 1. Get Auth Token
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      // 2. Pass Token in Headers
+      let payload: any = { type: mode };
+
+      if (mode === 'URL') {
+        payload.url = url;
+      } else {
+        if (!file) throw new Error("Please select a file.");
+        if (file.size > 4 * 1024 * 1024) throw new Error("File too large (Max 4MB for demo)");
+        
+        // Convert file to string
+        const base64 = await fileToBase64(file);
+        payload.fileData = base64; 
+        payload.fileName = file.name;
+        payload.fileType = file.type;
+      }
+
+      // 2. Send to API
       const response = await fetch('/api/capture', {
         method: 'POST',
         headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // <--- PASS TOKEN HERE
+            'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ url, type: 'URL' })
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to capture');
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create capture');
-      }
-
-      setResult(data.capture);
+      // 3. Cleanup
       setUrl('');
+      setFile(null);
+      setSuccessId(data.capture.id);
       
-      // 3. Trigger the list refresh in the parent component
-      if (onSuccess) {
-        onSuccess();
-      }
+      if (onSuccess) onSuccess();
 
     } catch (err: any) {
       setError(err.message || 'Unknown error');
@@ -72,72 +87,103 @@ export default function CaptureForm({ onSuccess }: CaptureFormProps) {
 
   return (
     <div className="w-full">
+      
+      {/* MODE TABS */}
+      <div className="flex gap-2 mb-6 p-1 bg-secondary/30 rounded-lg w-fit">
+        <button
+          type="button"
+          onClick={() => setMode('URL')}
+          className={`px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${
+            mode === 'URL' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <LinkIcon size={16} /> Web Link
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('FILE')}
+          className={`px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${
+            mode === 'FILE' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Upload size={16} /> Upload File
+        </button>
+      </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="url" className="sr-only">
-            URL to Preserve
-          </label>
+        
+        {/* INPUT: URL */}
+        {mode === 'URL' ? (
           <div className="relative">
-            <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+            <LinkIcon className="absolute left-3 top-3.5 text-muted-foreground" size={20} />
             <input
-              id="url"
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://example.com/article"
-              required
+              required={mode === 'URL'}
               disabled={loading}
-              className="w-full pl-10 pr-4 py-3 bg-background border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-foreground placeholder:text-muted-foreground disabled:opacity-50"
+              className="w-full pl-10 pr-4 py-3 bg-background border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-foreground"
             />
           </div>
-        </div>
+        ) : (
+          /* INPUT: FILE UPLOAD */
+          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:bg-accent/50 transition-colors">
+            <input
+              type="file"
+              id="file-upload"
+              className="hidden"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              disabled={loading}
+            />
+            <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center w-full h-full">
+              {file ? (
+                <>
+                  <FileIcon className="h-10 w-10 text-primary mb-2" />
+                  <span className="text-sm font-bold text-foreground">{file.name}</span>
+                  <span className="text-xs text-muted-foreground mt-1">
+                    {(file.size / 1024).toFixed(1)} KB
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+                  <span className="text-sm font-medium text-foreground">
+                    Click to select a file
+                  </span>
+                  <span className="text-xs text-muted-foreground mt-2">
+                    Supports Images, PDF, TXT, JSON (Max 4MB)
+                  </span>
+                </>
+              )}
+            </label>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg flex items-center gap-2">
+            <AlertCircle size={16} /> {error}
+          </div>
+        )}
+
+        {successId && (
+          <div className="p-3 bg-green-500/10 text-green-500 text-sm rounded-lg flex items-center gap-2 animate-in fade-in">
+            <Check size={16} /> Archived! ID: {successId.slice(0,8)}
+          </div>
+        )}
 
         <button
           type="submit"
-          disabled={loading || !url}
-          className="w-full bg-primary text-primary-foreground hover:opacity-90 font-medium py-3 px-6 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          disabled={loading || (mode === 'URL' && !url) || (mode === 'FILE' && !file)}
+          className="w-full bg-primary text-primary-foreground hover:opacity-90 font-medium py-3 rounded-lg transition-all flex items-center justify-center gap-2"
         >
           {loading ? (
-            <>
-              <Loader2 className="animate-spin" size={20} />
-              Archiving & Timestamping...
-            </>
+            <><Loader2 className="animate-spin" size={20} /> Hashing & Timestamping...</>
           ) : (
             'Preserve Evidence'
           )}
         </button>
       </form>
-
-      {error && (
-        <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2">
-          <AlertCircle className="text-destructive h-5 w-5" />
-          <p className="text-destructive text-sm">{error}</p>
-        </div>
-      )}
-
-      {/* Success Message (The list below also updates, but this gives immediate feedback) */}
-      {result && (
-        <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg space-y-2 animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-2 text-green-500 font-medium">
-            <Check size={20} />
-            Successfully Sent to Blockchain!
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Your evidence has been added to the list below. 
-            <br />
-            ID: <span className="font-mono">{result.id}</span>
-          </p>
-        </div>
-      )}
-
-      <div className="mt-6 p-4 bg-secondary/50 border border-border rounded-lg">
-        <h3 className="font-medium text-foreground mb-2 text-sm">How it works:</h3>
-        <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-          <li>We screenshot & hash the URL (SHA-256)</li>
-          <li>Content is uploaded to IPFS (Decentralized Storage)</li>
-          <li>Hash is anchored to Bitcoin via OpenTimestamps</li>
-        </ol>
-      </div>
     </div>
   );
 }
