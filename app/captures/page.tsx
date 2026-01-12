@@ -1,8 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, ExternalLink, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Clock, ExternalLink, CheckCircle, AlertCircle, Loader2, Shield } from 'lucide-react';
 import Link from 'next/link';
+import { createClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
+import CaptureForm from '@/components/CaptureForm';
+
+// ✅ CORRECT: Defined ONCE outside the component
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface Capture {
   id: string;
@@ -20,193 +29,188 @@ interface Capture {
 export default function CapturesPage() {
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const router = useRouter();
+  
+  // ❌ DELETED: const supabase = createClient(...) from here. 
+  // It caused the crash.
+
+  const fetchCaptures = async () => {
+    try {
+      // 1. Get the session token explicitly
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      // 2. Send it in the headers
+      const response = await fetch('/api/capture', {
+        headers: {
+          'Authorization': `Bearer ${token}` // <--- PASS TOKEN HERE
+        }
+      });
+      
+      if (response.status === 401) {
+        router.push('/login');
+        return;
+      }
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch captures');
+      }
+      
+      setCaptures(data.captures || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchCaptures = async () => {
-      try {
-        const response = await fetch('/api/capture');
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch captures');
-        }
-        
-        setCaptures(data.captures);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-      } finally {
-        setLoading(false);
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
       }
+      fetchCaptures();
     };
+    checkUser();
+    // ✅ FIX: Removed 'supabase' from dependencies to prevent loops
+  }, [router]); 
 
+  const handleSuccess = () => {
     fetchCaptures();
-  }, []);
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="animate-spin mx-auto mb-4 text-blue-600" size={48} />
-          <p className="text-gray-600">Loading captures...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
-          <AlertCircle className="text-red-600 mx-auto mb-4" size={48} />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">Error</h1>
-          <p className="text-gray-600 text-center">{error}</p>
+          <Loader2 className="animate-spin mx-auto mb-4 text-primary" size={48} />
+          <p className="text-muted-foreground">Loading your evidence vault...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Preserved Evidence
-          </h1>
-          <p className="text-gray-600">
-            Timeline of all captured and timestamped content
-          </p>
+    <div className="min-h-screen bg-background py-12 px-4">
+      <div className="max-w-5xl mx-auto space-y-10">
+        
+        {/* Header & Stats */}
+        <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-border pb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              My Evidence Vault
+            </h1>
+            <p className="text-muted-foreground">
+              Manage your decentralized archives and blockchain proofs.
+            </p>
+          </div>
+          
+          <div className="flex gap-4">
+            <div className="text-center px-4">
+              <p className="text-2xl font-bold text-foreground">{captures.length}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Total</p>
+            </div>
+            <div className="text-center px-4 border-l border-border">
+              <p className="text-2xl font-bold text-green-500">
+                {captures.filter(c => c.otsStatus === 'COMPLETE').length}
+              </p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Verified</p>
+            </div>
+            <div className="text-center px-4 border-l border-border">
+              <p className="text-2xl font-bold text-yellow-500">
+                {captures.filter(c => c.otsStatus !== 'COMPLETE').length}
+              </p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Pending</p>
+            </div>
+          </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <p className="text-2xl font-bold text-gray-900">{captures.length}</p>
-            <p className="text-sm text-gray-600">Total Captures</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <p className="text-2xl font-bold text-green-600">
-              {captures.filter(c => c.otsStatus === 'COMPLETE').length}
-            </p>
-            <p className="text-sm text-gray-600">Verified</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <p className="text-2xl font-bold text-yellow-600">
-              {captures.filter(c => c.otsStatus === 'INCOMPLETE').length}
-            </p>
-            <p className="text-sm text-gray-600">Pending</p>
-          </div>
+        {/* Capture Form */}
+        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" /> 
+            Archive New Content
+          </h2>
+          <CaptureForm onSuccess={handleSuccess} />
         </div>
 
-        {/* Timeline */}
-        {captures.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <Clock className="text-gray-400 mx-auto mb-4" size={48} />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              No captures yet
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Start preserving evidence to see your timeline
-            </p>
-            <Link
-              href="/"
-              className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
-            >
-              Create First Capture
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {captures.map((capture, index) => (
-              <div
-                key={capture.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-gray-900 truncate">
-                        {capture.title || capture.url}
-                      </h3>
-                      {capture.otsStatus === 'COMPLETE' ? (
-                        <CheckCircle className="text-green-600 flex-shrink-0" size={18} />
-                      ) : (
-                        <Clock className="text-yellow-600 flex-shrink-0" size={18} />
-                      )}
+        {/* Timeline List */}
+        <div>
+          <h2 className="text-xl font-bold text-foreground mb-6">Recent Archives</h2>
+          
+          {captures.length === 0 ? (
+            <div className="bg-card rounded-xl border border-border border-dashed p-12 text-center">
+              <Clock className="text-muted-foreground mx-auto mb-4" size={48} />
+              <h2 className="text-xl font-semibold text-foreground mb-2">
+                No captures yet
+              </h2>
+              <p className="text-muted-foreground">
+                Paste a URL above to create your first immutable record.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {captures.map((capture) => (
+                <div
+                  key={capture.id}
+                  className="bg-card rounded-xl border border-border p-6 hover:shadow-md transition-all group"
+                >
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    {/* Content Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${
+                            capture.otsStatus === 'COMPLETE' ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'
+                        }`}>
+                            {capture.otsStatus === 'COMPLETE' ? <CheckCircle size={16} /> : <Clock size={16} />}
+                        </span>
+                        <h3 className="font-semibold text-foreground text-lg truncate">
+                          {capture.title || capture.url}
+                        </h3>
+                      </div>
+
+                      <div className="pl-11">
+                        <p className="text-sm text-muted-foreground mb-3 truncate font-mono">
+                          {capture.url}
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground/70">
+                          <span className="flex items-center gap-1">
+                            <Clock size={12} />
+                            {new Date(capture.createdAt).toLocaleString()}
+                          </span>
+                          <span className="flex items-center gap-1 font-mono bg-secondary px-2 py-0.5 rounded">
+                            ID: {capture.contentHash.slice(0, 8)}...
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
-                    {capture.description && (
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {capture.description}
-                      </p>
-                    )}
-
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Clock size={12} />
-                        {new Date(capture.createdAt).toLocaleDateString()}
-                      </span>
-                      <span className="font-mono">
-                        {capture.contentHash.slice(0, 12)}...
-                      </span>
+                    {/* Actions */}
+                    <div className="flex md:flex-col gap-3 pl-11 md:pl-0">
+                      <Link
+                        href={`/verify/${capture.id}`}
+                        className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
+                      >
+                        View Proof
+                      </Link>
+                      <a
+                        href={capture.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center px-4 py-2 bg-secondary text-secondary-foreground text-sm font-medium rounded-lg hover:bg-secondary/80 transition-colors gap-2"
+                      >
+                        Original <ExternalLink size={12} />
+                      </a>
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  <div className="flex flex-col gap-2">
-                    <Link
-                      href={`/verify/${capture.id}`}
-                      className="text-sm text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap"
-                    >
-                      Verify →
-                    </Link>
-                    <a
-                      href={capture.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-gray-600 hover:text-gray-700 flex items-center gap-1"
-                    >
-                      Original
-                      <ExternalLink size={12} />
-                    </a>
-                  </div>
                 </div>
-
-                {/* Status badge */}
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
-                    capture.otsStatus === 'COMPLETE'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {capture.otsStatus === 'COMPLETE' ? (
-                      <>
-                        <CheckCircle size={12} />
-                        Bitcoin Verified
-                      </>
-                    ) : (
-                      <>
-                        <Clock size={12} />
-                        Awaiting Confirmation
-                      </>
-                    )}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Back to Home */}
-        <div className="mt-8 text-center">
-          <Link
-            href="/"
-            className="text-blue-600 hover:text-blue-700 font-medium"
-          >
-            ← Back to Home
-          </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

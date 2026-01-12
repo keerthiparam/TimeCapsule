@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Shield, Clock, ExternalLink, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Shield, Clock, ExternalLink, CheckCircle, AlertCircle, Loader2, Download } from 'lucide-react';
 
 interface VerificationData {
   verified: boolean;
@@ -33,6 +33,7 @@ export default function VerifyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [upgrading, setUpgrading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const fetchVerification = async () => {
     try {
@@ -74,6 +75,32 @@ export default function VerifyPage() {
     }
   };
 
+  const handleDownloadProof = async () => {
+    setDownloading(true);
+    try {
+      const response = await fetch(`/api/verify/download?id=${id}`);
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `timecapsule-${id}.ots`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed:', err);
+      alert('Failed to download OTS proof');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   useEffect(() => {
     fetchVerification();
   }, [id]);
@@ -107,7 +134,7 @@ export default function VerifyPage() {
 
   const isComplete = data.capture.otsStatus === 'COMPLETE';
   const isPending = data.capture.otsStatus === 'INCOMPLETE';
-
+  
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
@@ -165,7 +192,31 @@ export default function VerifyPage() {
             </div>
           )}
         </div>
-
+        <div className="bg-blue-50 rounded-lg border border-blue-200 p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Shield size={20} className="text-blue-600" />
+            Independent Verification
+          </h3>
+          <p className="text-sm text-gray-700 mb-4">
+            Don't trust us? Verify the timestamp yourself without relying on TimeCapsule:
+          </p>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
+            <li>Download the OTS proof file using the button below</li>
+            <li>Click on "View on IPFS", which will take you to the IPFS storage.</li>
+            <li>From there, right click on the file that you can see, and click on "Save link as..." and save it as you wish.</li>
+            <li>Go to <a href="https://opentimestamps.org" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">opentimestamps.org</a></li>
+            <li>Click "Stamp & Verify" → Upload your .ots file and then the IPFS file that you saved, in that order.</li>
+            <li>See Bitcoin block confirmation (cryptographically verified!)</li>
+          </ol>
+          <div className="mt-4 p-3 bg-white rounded border border-blue-200">
+            <p className="text-xs text-gray-600">
+              <span className="font-semibold">Advanced:</span> Use CLI: <code className="bg-gray-100 px-2 py-1 rounded font-mono">ots verify timecapsule-{id}.ots</code>
+            </p>
+          </div>
+          <p className="text-xs text-gray-600 mt-4 italic">
+            This proof is cryptographically verifiable and doesn't require trust in TimeCapsule. Even if this website goes down, the proof remains valid on the Bitcoin blockchain.
+          </p>
+        </div>
         {/* Capture Details */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -205,7 +256,7 @@ export default function VerifyPage() {
                 )}
               </div>
               <a 
-                href={`https://${data.capture.ipfsCID}.ipfs.w3s.link`}
+                href={`https://${data.capture.ipfsCID}.ipfs.storacha.link`}
                 target="_blank"
                 rel="noopener noreferrer" 
                 className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1 mt-1"
@@ -225,41 +276,46 @@ export default function VerifyPage() {
             {data.verification.blockHeight && (
               <div>
                 <label className="text-sm font-medium text-gray-700">Bitcoin Block</label>
-                <p className="text-gray-600 mt-1">
+                <a
+                  href={`https://blockstream.info/block-height/${data.verification.blockHeight}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 flex items-center gap-1 mt-1"
+                >
                   #{data.verification.blockHeight}
-                </p>
+                  <ExternalLink size={14} />
+                </a>
               </div>
             )}
+
+            {/* Download OTS Proof Button */}
+            <div className="pt-4 border-t border-gray-200">
+              <button
+                onClick={handleDownloadProof}
+                disabled={downloading}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+              >
+                {downloading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download size={16} />
+                    Download OTS Proof File
+                  </>
+                )}
+              </button>
+              <p className="text-xs text-gray-600 mt-2">
+                Download the OpenTimestamps proof to verify independently
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* How to Verify */}
-        <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
-            How to Independently Verify
-          </h3>
-          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
-            <li>Download the original content from IPFS using the CID above</li>
-            <li>Calculate SHA-256 hash and compare with recorded hash</li>
-            <li>Verify the OpenTimestamps proof against Bitcoin blockchain</li>
-            <li>Confirm the timestamp matches the capture date</li>
-          </ol>
-          <p className="text-xs text-gray-600 mt-4">
-            This proof is cryptographically verifiable and doesn't require trust in TimeCapsule.
-          </p>
-        </div>
-
-        {/* Share */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600 mb-2">Share this verification:</p>
-          <input
-            type="text"
-            readOnly
-            value={typeof window !== 'undefined' ? window.location.href : ''}
-            className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg text-sm text-center font-mono"
-            onClick={(e) => e.currentTarget.select()}
-          />
-        </div>
+        {/* Independent Verification Instructions */}
+        
       </div>
     </div>
   );

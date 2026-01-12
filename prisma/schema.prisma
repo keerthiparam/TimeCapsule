@@ -39,6 +39,9 @@ model Capture {
   screenshotCID String?
   screenshotUrl String?
   
+  userId String?
+
+  @@index([userId])
   @@index([createdAt])
   @@index([contentHash])
 }

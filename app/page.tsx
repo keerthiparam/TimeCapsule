@@ -1,109 +1,165 @@
-import CaptureForm from '@/components/CaptureForm';
-import { Shield, Clock, Lock } from 'lucide-react';
+'use client';
+
+import Link from 'next/link';
+import { Shield, Clock, Lock, ArrowRight, CheckCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase (Same manual way as Navbar)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function Home() {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setLoading(false);
+    };
+    getUser();
+  }, []);
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="flex flex-col min-h-screen">
+      
       {/* Hero Section */}
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            Time<span className="text-blue-600">Capsule</span>
+      <section className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center space-y-8">
+        <div className="space-y-4 max-w-3xl">
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter text-foreground">
+            Time<span className="text-primary">Capsule</span>
           </h1>
-          <p className="text-xl text-gray-600 mb-2">
+          <p className="text-xl md:text-2xl text-muted-foreground">
             Preserve Digital Evidence. Prove It Existed.
           </p>
-          <p className="text-gray-500">
-            Tamper-proof timestamping for online content using Bitcoin & IPFS
+          <p className="text-md text-muted-foreground/80 max-w-2xl mx-auto">
+            Securely archive web content with tamper-proof timestamping using Bitcoin & IPFS. 
+            Designed for journalists, investigators, and legal teams.
           </p>
         </div>
 
-        {/* Features */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12 max-w-4xl mx-auto">
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <Shield className="text-blue-600 mb-3" size={32} />
-            <h3 className="font-semibold text-gray-900 mb-2">Tamper-Proof</h3>
-            <p className="text-sm text-gray-600">
-              Cryptographic hashing ensures content integrity. Any change is detectable.
-            </p>
+        {/* CTA Buttons - LOGIC CHANGED HERE */}
+        {!loading && (
+          <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+            
+            {/* If Logged In: Show "Go to Dashboard" */}
+            {user ? (
+              <Link 
+                href="/captures" 
+                className="inline-flex items-center justify-center px-8 py-3 text-lg font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-all shadow-lg shadow-primary/20"
+              >
+                Go to My Vault <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            ) : (
+              // If Logged Out: Show "Start Archiving" + "Log In"
+              <>
+                <Link 
+                  href="/captures" 
+                  className="inline-flex items-center justify-center px-8 py-3 text-lg font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-all shadow-lg shadow-primary/20"
+                >
+                  Start Archiving <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+                <Link 
+                  href="/login" 
+                  className="inline-flex items-center justify-center px-8 py-3 text-lg font-medium border border-border bg-card text-card-foreground rounded-lg hover:bg-accent transition-all"
+                >
+                  Log In
+                </Link>
+              </>
+            )}
+            
           </div>
+        )}
+      </section>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <Clock className="text-blue-600 mb-3" size={32} />
-            <h3 className="font-semibold text-gray-900 mb-2">Timestamped</h3>
-            <p className="text-sm text-gray-600">
-              Anchored in Bitcoin blockchain via OpenTimestamps. Proves existence at a point in time.
-            </p>
-          </div>
+      {/* Features Grid (Same as before) */}
+      <section className="py-20 bg-card/50 border-y border-border">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="p-6 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+              <Shield className="h-10 w-10 text-primary mb-4" />
+              <h3 className="text-xl font-bold mb-2 text-foreground">Tamper-Proof</h3>
+              <p className="text-muted-foreground">
+                Cryptographic hashing ensures content integrity. Even one pixel changed alters the hash completely.
+              </p>
+            </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-            <Lock className="text-blue-600 mb-3" size={32} />
-            <h3 className="font-semibold text-gray-900 mb-2">Decentralized</h3>
-            <p className="text-sm text-gray-600">
-              Stored on IPFS. No single point of failure. Content persists independently.
-            </p>
+            <div className="p-6 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+              <Clock className="h-10 w-10 text-primary mb-4" />
+              <h3 className="text-xl font-bold mb-2 text-foreground">Bitcoin Timestamped</h3>
+              <p className="text-muted-foreground">
+                Anchored in the Bitcoin blockchain via OpenTimestamps. Mathematically proves existence at a specific time.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+              <Lock className="h-10 w-10 text-primary mb-4" />
+              <h3 className="text-xl font-bold mb-2 text-foreground">Decentralized</h3>
+              <p className="text-muted-foreground">
+                Evidence is stored on IPFS. No central server can delete or censor your captured data.
+              </p>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Capture Form */}
-        <CaptureForm />
-
-        {/* Use Cases */}
-        <div className="mt-16 max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-            Who Uses TimeCapsule?
+      {/* Use Cases */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-4xl">
+          <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
+            Trusted By
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-2">📰 Journalists</h3>
-              <p className="text-sm text-gray-600">
-                Archive articles and sources before they disappear. Maintain verifiable evidence trails.
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-2">🔍 OSINT Investigators</h3>
-              <p className="text-sm text-gray-600">
-                Preserve social media posts, web pages, and digital breadcrumbs with cryptographic proof.
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-2">⚖️ Legal Teams</h3>
-              <p className="text-sm text-gray-600">
-                Create admissible digital evidence with verifiable timestamps and integrity proofs.
-              </p>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-2">🎓 Researchers</h3>
-              <p className="text-sm text-gray-600">
-                Archive web content for citation. Ensure reproducibility with immutable snapshots.
-              </p>
-            </div>
+            <UseCaseCard 
+              icon="📰" 
+              title="Journalists" 
+              desc="Archive articles and sources before they are stealth-edited or deleted." 
+            />
+            <UseCaseCard 
+              icon="🔍" 
+              title="OSINT Investigators" 
+              desc="Preserve social media posts and digital breadcrumbs with verifiable proofs." 
+            />
+            <UseCaseCard 
+              icon="⚖️" 
+              title="Legal Teams" 
+              desc="Create admissible digital evidence with strict chain-of-custody." 
+            />
+            <UseCaseCard 
+              icon="🎓" 
+              title="Researchers" 
+              desc="Ensure reproducibility by citing immutable snapshots of web content." 
+            />
           </div>
         </div>
-
-        {/* CTA */}
-        <div className="mt-16 text-center">
-          <a
-            href="/captures"
-            className="inline-block bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 px-8 rounded-lg transition-colors"
-          >
-            View All Captures
-          </a>
-        </div>
-      </div>
+      </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 mt-16 py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-gray-600">
-          <p>Built with OpenTimestamps, IPFS & Bitcoin</p>
-          <p className="mt-2">
-            TimeCapsule proves <em>existence</em>, not <em>truthfulness</em>
+      <footer className="border-t border-border py-8 bg-card/50">
+        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
+          <p className="font-medium">Built with OpenTimestamps, IPFS & Bitcoin</p>
+          <p className="mt-2 opacity-75">
+            TimeCapsule proves <em>existence</em>, not <em>truthfulness</em>.
           </p>
         </div>
       </footer>
-    </main>
+    </div>
+  );
+}
+
+// Helper component
+function UseCaseCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
+  return (
+    <div className="flex items-start p-6 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors">
+      <span className="text-3xl mr-4">{icon}</span>
+      <div>
+        <h3 className="font-bold text-lg text-foreground mb-1">{title}</h3>
+        <p className="text-sm text-muted-foreground">{desc}</p>
+      </div>
+    </div>
   );
 }

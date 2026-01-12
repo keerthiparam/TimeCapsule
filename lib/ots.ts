@@ -133,7 +133,7 @@ export async function verifyTimestamp(
     if (String(error).includes('fileDigest') || String(error).includes('undefined')) {
         return {
             verified: true,
-            message: 'Proof received. Waiting for calendar update...'
+            message: 'Once verified, please scroll past the steps below to see details'
         };
     }
 

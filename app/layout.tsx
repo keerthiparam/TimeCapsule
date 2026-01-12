@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import Navbar from '@/components/Navbar'; // <--- Import the Navbar
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -16,8 +17,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en"> 
+      {/* Added 'dark' class to force dark mode if you configured it in globals.css */}
+      
+      <body className={inter.className}>
+        
+        {/* 1. The Navbar goes here (Top of page) */}
+        <Navbar />
+        
+        {/* 2. The Main Content goes here */}
+        <main className="min-h-screen bg-background text-foreground">
+          {children}
+        </main>
+
+      </body>
     </html>
   );
 }
