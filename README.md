@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TimeCapsule `( ◡̀_◡́)ᕤ`
+
+> **Preserve Digital Evidence. Prove It Existed.**
+> The decentralized digital notary for the web.
+
+## `( o_O )?` The Problem
+The internet is fragile. News articles are stealth-edited, tweets are deleted, and evidence vanishes behind "404 Not Found" errors.
+*   **Link Rot:** 25% of deep-web links die within years.
+*   **Censorship:** Centralized archives can be forced to take down content. 
+*   **Tampering:** Screenshots can be Photoshopped. 
+
+## `(≧∇≦)ﾉ` The Solution
+**TimeCapsule** is a forensic archiving tool that freezes the truth forever.
+1.  **Capture:** We use a server-side browser to take a forensic snapshot of the DOM.
+2.  **Store:** We upload the content to **IPFS**, so it can never be deleted. 
+3.  **Timestamp:** We anchor the SHA-256 hash to the **Bitcoin Blockchain** via OpenTimestamps.
+
+**Result?** An immutable, verifiable record that holds up in court. 
+
+---
+
+## Key Features
+
+*   **Forensic Web Capture:** Captures HTML, Metadata, and Screenshots via Puppeteer. 
+*   **File Uploads:** Drag & drop PDFs, Images, or Text to timestamp them instantly. 
+*   **Blockchain Proof:** Automatically generates an `.ots` receipt anchored to Bitcoin. 
+*   **Web3 Login:** Sign in securely with **MetaMask**. `( 🦊 )`
+*   **Public/Private Toggles:** Keep your vault private or become a whistleblower on the Global Feed. 
+*   **PDF Reports:** Generate professional "Chain of Custody" reports for legal use. 
+
+---
+
+## Tech Stack
+
+| Component | Technology | Role |
+| :--- | :--- | :--- |
+| **Frontend** | Next.js 15 + Tailwind | The shiny UI |
+| **Auth** | Supabase + MetaMask | Identity & Sessions |
+| **Backend** | Next.js API Routes | Serverless Functions |
+| **Engine** | Puppeteer | Headless Browser Capture |
+| **Storage** | IPFS (Storacha/Web3.storage) | Decentralized Vault |
+| **Trust** | OpenTimestamps | Bitcoin Anchoring |
+| **Database** | PostgreSQL (Prisma) | Metadata Indexing |
+
+---
 
 ## Getting Started
 
-First, run the development server:
+Coming Soon (ง •̀_•́)ง
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Architecture
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+![alt text](<architecture.png>)
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How to Verify Evidence
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Don't trust us? Verify it yourself! `( ಠ_ಠ )`
 
-## Learn More
+1.  Go to the **Verify Page** of any capture.
+2.  Download the **Evidence File** (from IPFS) and the **Proof File** (`.ots`).
+3.  Go to [OpenTimestamps.org](https://opentimestamps.org).
+4.  Upload both files.
+5.  **Success!** You will see the Bitcoin Block height where your data is anchored.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Built with ❤️ by Team Web Wizards**
