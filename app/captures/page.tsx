@@ -258,12 +258,12 @@ export default function CapturesPage() {
                         View Proof
                       </Link>
 
-                      <button
+                      {/* <button
                         onClick={() => handleDownload(capture)}
                         className="inline-flex items-center justify-center px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium rounded-lg transition-colors gap-2"
                       >
                         <Download size={14} /> Download
-                      </button>
+                      </button> */}
                     </div>
                   </div>
                 </div>

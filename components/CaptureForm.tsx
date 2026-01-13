@@ -17,20 +17,17 @@ export default function CaptureForm({ onSuccess }: CaptureFormProps) {
   const [mode, setMode] = useState<'URL' | 'FILE'>('URL');
   const [url, setUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successId, setSuccessId] = useState('');
 
-  // Convert File to Base64 string for API upload
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
+      reader.onerror = (err) => reject(err);
     });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,45 +36,32 @@ export default function CaptureForm({ onSuccess }: CaptureFormProps) {
     setSuccessId('');
 
     try {
-      // 1. Get Auth Token
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
       let payload: any = { type: mode };
-
-      if (mode === 'URL') {
-        payload.url = url;
-      } else {
+      if (mode === 'URL') payload.url = url;
+      else {
         if (!file) throw new Error("Please select a file.");
         if (file.size > 4 * 1024 * 1024) throw new Error("File too large (Max 4MB for demo)");
-        
-        // Convert file to string
         const base64 = await fileToBase64(file);
-        payload.fileData = base64; 
+        payload.fileData = base64;
         payload.fileName = file.name;
         payload.fileType = file.type;
       }
 
-      // 2. Send to API
       const response = await fetch('/api/capture', {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
       });
-
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to capture');
 
-      // 3. Cleanup
       setUrl('');
       setFile(null);
       setSuccessId(data.capture.id);
-      
       if (onSuccess) onSuccess();
-
     } catch (err: any) {
       setError(err.message || 'Unknown error');
     } finally {
@@ -86,15 +70,17 @@ export default function CaptureForm({ onSuccess }: CaptureFormProps) {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full glass p-6 rounded-2xl shadow-lg border border-white/20 backdrop-blur-md">
       
       {/* MODE TABS */}
-      <div className="flex gap-2 mb-6 p-1 bg-secondary/30 rounded-lg w-fit">
+      <div className="flex gap-2 mb-6 p-1 bg-secondary/20 rounded-2xl w-fit shadow-inner">
         <button
           type="button"
           onClick={() => setMode('URL')}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${
-            mode === 'URL' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          className={`px-4 py-2 text-sm font-medium rounded-2xl transition-all flex items-center gap-2 ${
+            mode === 'URL'
+              ? 'bg-background/70 text-foreground shadow-md'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <LinkIcon size={16} /> Web Link
@@ -102,8 +88,10 @@ export default function CaptureForm({ onSuccess }: CaptureFormProps) {
         <button
           type="button"
           onClick={() => setMode('FILE')}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${
-            mode === 'FILE' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          className={`px-4 py-2 text-sm font-medium rounded-2xl transition-all flex items-center gap-2 ${
+            mode === 'FILE'
+              ? 'bg-background/70 text-foreground shadow-md'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <Upload size={16} /> Upload File
@@ -112,9 +100,9 @@ export default function CaptureForm({ onSuccess }: CaptureFormProps) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         
-        {/* INPUT: URL */}
+        {/* URL INPUT */}
         {mode === 'URL' ? (
-          <div className="relative">
+          <div className="relative glass p-2 rounded-xl border border-white/20 shadow-sm hover:shadow-md transition-all">
             <LinkIcon className="absolute left-3 top-3.5 text-muted-foreground" size={20} />
             <input
               type="url"
@@ -123,12 +111,12 @@ export default function CaptureForm({ onSuccess }: CaptureFormProps) {
               placeholder="https://example.com/article"
               required={mode === 'URL'}
               disabled={loading}
-              className="w-full pl-10 pr-4 py-3 bg-background border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-foreground"
+              className="w-full pl-10 pr-4 py-3 bg-background/50 border border-input rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-foreground transition-all"
             />
           </div>
         ) : (
-          /* INPUT: FILE UPLOAD */
-          <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:bg-accent/50 transition-colors">
+          /* FILE UPLOAD */
+          <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center hover:bg-accent/40 glass transition-all">
             <input
               type="file"
               id="file-upload"
@@ -148,9 +136,7 @@ export default function CaptureForm({ onSuccess }: CaptureFormProps) {
               ) : (
                 <>
                   <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-                  <span className="text-sm font-medium text-foreground">
-                    Click to select a file
-                  </span>
+                  <span className="text-sm font-medium text-foreground">Click to select a file</span>
                   <span className="text-xs text-muted-foreground mt-2">
                     Supports Images, PDF, TXT, JSON (Max 4MB)
                   </span>
@@ -161,13 +147,13 @@ export default function CaptureForm({ onSuccess }: CaptureFormProps) {
         )}
 
         {error && (
-          <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-lg flex items-center gap-2">
+          <div className="p-3 bg-destructive/20 text-destructive text-sm rounded-2xl flex items-center gap-2 glass animate-in fade-in">
             <AlertCircle size={16} /> {error}
           </div>
         )}
 
         {successId && (
-          <div className="p-3 bg-green-500/10 text-green-500 text-sm rounded-lg flex items-center gap-2 animate-in fade-in">
+          <div className="p-3 bg-green-500/20 text-green-500 text-sm rounded-2xl flex items-center gap-2 glass animate-in fade-in">
             <Check size={16} /> Archived! ID: {successId.slice(0,8)}
           </div>
         )}
@@ -175,10 +161,12 @@ export default function CaptureForm({ onSuccess }: CaptureFormProps) {
         <button
           type="submit"
           disabled={loading || (mode === 'URL' && !url) || (mode === 'FILE' && !file)}
-          className="w-full bg-primary text-primary-foreground hover:opacity-90 font-medium py-3 rounded-lg transition-all flex items-center justify-center gap-2"
+          className="w-full glass bg-primary/90 text-primary-foreground hover:scale-105 font-medium py-3 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
         >
           {loading ? (
-            <><Loader2 className="animate-spin" size={20} /> Hashing & Timestamping...</>
+            <>
+              <Loader2 className="animate-spin" size={20} /> Hashing & Timestamping...
+            </>
           ) : (
             'Preserve Evidence'
           )}
