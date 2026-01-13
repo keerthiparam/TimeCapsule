@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { Globe } from 'lucide-react'; // <--- Import Globe icon
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,7 +23,7 @@ export default function Navbar() {
     };
     getUser();
 
-    // 2. Listen for login/logout events
+    // 2. Listen for login/logout events in Real-Time
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (_event === 'SIGNED_OUT') {
@@ -36,6 +37,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    // The listener above will handle the state update
     router.push('/login');
   };
 
@@ -60,15 +62,26 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-6">
+          
+          {/* --- NEW: PUBLIC EXPLORE LINK (Visible to Everyone) --- */}
+          <Link 
+            href="/explore" 
+            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+          >
+            <Globe size={16} /> Explore
+          </Link>
+
+          {/* User Links (Only if logged in) */}
           {user && (
             <Link 
               href="/captures" 
               className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
-              My Captures
+              My Vault
             </Link>
           )}
 
+          {/* Auth Actions */}
           {user ? (
             <div className="flex items-center gap-4">
               <span className="text-xs font-mono text-muted-foreground hidden sm:inline border border-border px-2 py-1 rounded bg-secondary/50">

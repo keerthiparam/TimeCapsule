@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, ExternalLink, CheckCircle, AlertCircle, Loader2, Shield } from 'lucide-react';
+import { Clock, ExternalLink, CheckCircle, AlertCircle, Loader2, Shield, Download, Globe, Lock } from 'lucide-react'; 
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import CaptureForm from '@/components/CaptureForm';
 
-// ✅ CORRECT: Defined ONCE outside the component
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -24,26 +23,26 @@ interface Capture {
   otsStatus: string;
   createdAt: string;
   screenshotUrl?: string;
+  metadata?: any;
+  isPublic: boolean; // <--- Added isPublic
 }
 
 export default function CapturesPage() {
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  // Track which specific item is toggling to show a mini-spinner
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   
-  // ❌ DELETED: const supabase = createClient(...) from here. 
-  // It caused the crash.
+  const router = useRouter();
 
   const fetchCaptures = async () => {
     try {
-      // 1. Get the session token explicitly
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      // 2. Send it in the headers
       const response = await fetch('/api/capture', {
         headers: {
-          'Authorization': `Bearer ${token}` // <--- PASS TOKEN HERE
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -75,11 +74,52 @@ export default function CapturesPage() {
       fetchCaptures();
     };
     checkUser();
-    // ✅ FIX: Removed 'supabase' from dependencies to prevent loops
   }, [router]); 
 
   const handleSuccess = () => {
     fetchCaptures();
+  };
+
+  // --- DOWNLOAD FUNCTION ---
+  const handleDownload = (capture: Capture) => {
+    let filename = `evidence-${capture.id.slice(0, 8)}`;
+    if (capture.type === 'URL') filename += '.html';
+    else if (capture.metadata?.originalName) filename = capture.metadata.originalName;
+    else filename += '.bin';
+
+    const proxyUrl = `/api/download_proxy?cid=${capture.ipfsCID}&filename=${encodeURIComponent(filename)}`;
+    window.location.href = proxyUrl;
+  };
+
+  // --- NEW: TOGGLE PUBLIC/PRIVATE ---
+  const handleTogglePublic = async (capture: Capture) => {
+    setTogglingId(capture.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      // Optimistic Update (Update UI instantly)
+      const newStatus = !capture.isPublic;
+      setCaptures(prev => prev.map(c => c.id === capture.id ? { ...c, isPublic: newStatus } : c));
+
+      // API Call
+      await fetch('/api/capture/togglepublic', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ id: capture.id, isPublic: newStatus })
+      });
+
+    } catch (err) {
+      console.error("Failed to toggle", err);
+      // Revert if failed
+      setCaptures(prev => prev.map(c => c.id === capture.id ? { ...c, isPublic: !capture.isPublic } : c));
+      alert("Failed to update visibility");
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   if (loading) {
@@ -120,10 +160,10 @@ export default function CapturesPage() {
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Verified</p>
             </div>
             <div className="text-center px-4 border-l border-border">
-              <p className="text-2xl font-bold text-yellow-500">
-                {captures.filter(c => c.otsStatus !== 'COMPLETE').length}
+              <p className="text-2xl font-bold text-blue-500">
+                {captures.filter(c => c.isPublic).length}
               </p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Pending</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Public</p>
             </div>
           </div>
         </div>
@@ -174,7 +214,7 @@ export default function CapturesPage() {
 
                       <div className="pl-11">
                         <p className="text-sm text-muted-foreground mb-3 truncate font-mono">
-                          {capture.url}
+                          {capture.url || capture.metadata?.originalName || "Uploaded File"}
                         </p>
 
                         <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground/70">
@@ -189,22 +229,41 @@ export default function CapturesPage() {
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex md:flex-col gap-3 pl-11 md:pl-0">
+                    {/* Actions Column */}
+                    <div className="flex md:flex-col gap-3 pl-11 md:pl-0 min-w-[140px]">
+                      
+                      {/* --- TOGGLE PUBLIC BUTTON --- */}
+                      <button
+                        onClick={() => handleTogglePublic(capture)}
+                        disabled={togglingId === capture.id}
+                        className={`inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium transition-colors gap-2 border ${
+                            capture.isPublic 
+                            ? 'bg-blue-500/10 text-blue-600 border-blue-200 hover:bg-blue-500/20' 
+                            : 'bg-secondary text-muted-foreground border-transparent hover:text-foreground'
+                        }`}
+                      >
+                        {togglingId === capture.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                        ) : capture.isPublic ? (
+                            <><Globe size={14} /> Public</>
+                        ) : (
+                            <><Lock size={14} /> Private</>
+                        )}
+                      </button>
+
                       <Link
                         href={`/verify/${capture.id}`}
                         className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
                       >
                         View Proof
                       </Link>
-                      <a
-                        href={capture.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center px-4 py-2 bg-secondary text-secondary-foreground text-sm font-medium rounded-lg hover:bg-secondary/80 transition-colors gap-2"
+
+                      <button
+                        onClick={() => handleDownload(capture)}
+                        className="inline-flex items-center justify-center px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm font-medium rounded-lg transition-colors gap-2"
                       >
-                        Original <ExternalLink size={12} />
-                      </a>
+                        <Download size={14} /> Download
+                      </button>
                     </div>
                   </div>
                 </div>

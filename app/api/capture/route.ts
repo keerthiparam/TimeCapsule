@@ -190,7 +190,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true, type: true, url: true, title: true,
         contentHash: true, ipfsCID: true, otsStatus: true,
-        createdAt: true
+        createdAt: true, isPublic: true
       }
     });
     return NextResponse.json({ captures });

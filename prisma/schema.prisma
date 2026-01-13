@@ -42,6 +42,10 @@ model Capture {
   userId String?
 
   walletAddress String?
+
+  isPublic Boolean @default(false)
+
+  @@index([isPublic])
   @@index([userId])
   @@index([walletAddress])
   @@index([createdAt])
