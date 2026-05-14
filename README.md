@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="TimeCapsule.png">
+</p>
+
 # TimeCapsule `( ◡̀_◡́)ᕤ`
 
 > **Preserve Digital Evidence. Prove It Existed.**
