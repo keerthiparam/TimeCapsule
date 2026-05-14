@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="TimeCapsule.png">
+  <img src="TimeCapsule.png" width=200>
 </p>
 
 # TimeCapsule `( ◡̀_◡́)ᕤ`
