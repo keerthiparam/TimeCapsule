@@ -7,6 +7,8 @@
 > **Preserve Digital Evidence. Prove It Existed.**
 > The decentralized digital notary for the web.
 
+https://github.com/user-attachments/assets/82693a46-e0b0-4533-bd7b-625afaf00082
+
 ## `( o_O )?` The Problem
 The internet is fragile. News articles are stealth-edited, tweets are deleted, and evidence vanishes behind "404 Not Found" errors.
 *   **Link Rot:** 25% of deep-web links die within years.
